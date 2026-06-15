@@ -77,6 +77,17 @@ def _balls_overlap(a: Ball, b: Ball) -> bool:
     return _distance(a.x, a.y, b.x, b.y) < a.radius + b.radius
 
 
+def _resolve_inventory_index(index: int, length: int) -> Optional[int]:
+    """Преобразует индекс инвентаря; отрицательные индексы считаются с конца списка."""
+    if length == 0:
+        return None
+    if index < 0:
+        index += length
+    if index < 0 or index >= length:
+        return None
+    return index
+
+
 @dataclass
 class GameConfig:
     """Настройки игрового поля и поведения шариков."""
@@ -171,9 +182,10 @@ class GameState:
             return target
 
         if dist > 0:
-            step = min(self.config.suck_pull_speed * dt, dist - capture_dist * 0.5)
-            target.x += (mouse_x - target.x) / dist * step
-            target.y += (mouse_y - target.y) / dist * step
+            step = min(self.config.suck_pull_speed * dt, dist - capture_dist)
+            if step > 0:
+                target.x += (mouse_x - target.x) / dist * step
+                target.y += (mouse_y - target.y) / dist * step
 
         target.vx = 0.0
         target.vy = 0.0
@@ -189,14 +201,14 @@ class GameState:
         """
         Выплёвывает шарик из инвентаря на поле.
 
-        inventory_index: индекс в инвентаре (-1 — последний добавленный).
+        inventory_index: индекс в инвентаре (-1 — последний, -2 — предпоследний и т.д.).
         velocity: (vx, vy) начальной скорости.
         """
         if not self.inventory:
             return None
 
-        idx = inventory_index if inventory_index >= 0 else len(self.inventory) - 1
-        if idx >= len(self.inventory):
+        idx = _resolve_inventory_index(inventory_index, len(self.inventory))
+        if idx is None:
             return None
 
         ball = self.inventory.pop(idx)
@@ -210,8 +222,8 @@ class GameState:
         """Удаляет шарик из инвентаря без возврата на поле."""
         if not self.inventory:
             return None
-        idx = index if index >= 0 else len(self.inventory) - 1
-        if idx >= len(self.inventory):
+        idx = _resolve_inventory_index(index, len(self.inventory))
+        if idx is None:
             return None
         return self.inventory.pop(idx)
 
